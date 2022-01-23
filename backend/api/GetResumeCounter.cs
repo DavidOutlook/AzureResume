@@ -7,29 +7,33 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Net.Http;
+using System.Text;
+
 
 namespace Company.Function
 {
-    public static class GetResumeCounter
+    public static class GetResumeCopunter
     {
-        [FunctionName("GetResumeCounter")]
-        public static async Task<IActionResult> Run(
+        [FunctionName("GetResumeCopunter")]
+        public static HttpResponseMessage Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [CosmosDB(databaseName:"AzureResume", collectionName: "Counter", ConnectionStringSetting = "AzureResumeConnectionString", Id ="1", PartitionKey = "1")] Counter counter,
+            [CosmosDB(databaseName: "AzureResume", collectionName: "Counter", ConnectionStringSetting = "AzureResumeConnectionString", Id = "1",PartitionKey = "1")] out Counter updatedCounter,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
 
-            string name = req.Query["name"];
+            updatedCounter = counter;
+            updatedCounter.Count += 1;
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+            var JsonToReturn = JsonConvert.SerializeObject(counter);
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
 
-            return new OkObjectResult(responseMessage);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonToReturn, Encoding.UTF8, "application/json")
+            };
         }
     }
 }
